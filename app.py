@@ -15,7 +15,7 @@ app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY", "")
 
 # ── Contador de uso ───────────────────────────────────────────────────────────
-_api_calls = 0   # cada generación consume 2 llamadas (firma + foto)
+_api_calls = 0
 
 # ── PDF base ──────────────────────────────────────────────────────────────────
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -68,13 +68,13 @@ def procesar_foto(raw: bytes, api_key: str) -> io.BytesIO:
     sin_fondo = quitar_fondo_api(raw, api_key)
     return io.BytesIO(sin_fondo)
 
-def generar_pdf(pdf_bytes, firma_bytes, foto_bytes) -> bytes:
+def generar_pdf(pdf_bytes, firma_bytes, foto_bytes, api_key) -> bytes:
     from pypdf import PdfReader, PdfWriter
     from reportlab.pdfgen import canvas as rl_canvas
     from reportlab.lib.utils import ImageReader
 
-    firma_buf = procesar_firma(firma_bytes, REMOVEBG_API_KEY)
-    foto_buf  = procesar_foto(foto_bytes,  REMOVEBG_API_KEY)
+    firma_buf = procesar_firma(firma_bytes, api_key)
+    foto_buf  = procesar_foto(foto_bytes,  api_key)
 
     FIRMA = dict(x=105, y=105, w=210, h=75)
     FOTO  = dict(x=405, y=73,  w=115, h=100)
@@ -125,6 +125,7 @@ HTML = """
     --border: #dde3ed;
     --success: #16a34a;
     --error: #dc2626;
+    --warn: #d97706;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -173,6 +174,44 @@ HTML = """
     margin-bottom: 8px;
   }
 
+  /* Campo API key */
+  .api-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--light);
+    transition: border-color 0.2s;
+  }
+  .api-row:focus-within { border-color: var(--blue); }
+  .api-row input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--navy);
+    outline: none;
+  }
+  .api-row button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+    color: var(--gray);
+    transition: color 0.2s;
+  }
+  .api-row button:hover { color: var(--navy); }
+  .api-saved {
+    font-size: 11px;
+    color: var(--success);
+    margin-top: 4px;
+    display: none;
+  }
+
   .file-btn {
     display: flex;
     align-items: center;
@@ -189,15 +228,10 @@ HTML = """
   .file-btn .icon  { font-size: 22px; flex-shrink: 0; }
   .file-btn .text  { flex: 1; min-width: 0; }
   .file-btn .label { font-size: 13px; font-weight: 500; color: var(--navy); }
-
-  .file-btn .hint {
-    font-size: 11px;
-    color: var(--gray);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .file-btn .hint  {
+    font-size: 11px; color: var(--gray);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-
   .file-btn.selected { border-color: var(--blue); border-style: solid; background: var(--sky); }
   .file-btn.selected .hint { color: var(--blue); }
 
@@ -219,7 +253,6 @@ HTML = """
     transition: background 0.2s, transform 0.1s;
     letter-spacing: 0.2px;
   }
-
   .btn-generate:active   { transform: scale(0.98); }
   .btn-generate:disabled { background: #94a3b8; cursor: not-allowed; }
 
@@ -232,10 +265,9 @@ HTML = """
     display: none;
     text-align: center;
   }
-
-  .status.loading { display: block; background: var(--sky);    color: var(--blue);    }
-  .status.success { display: block; background: #f0fdf4;       color: var(--success); }
-  .status.error   { display: block; background: #fef2f2;       color: var(--error);   }
+  .status.loading { display: block; background: var(--sky);  color: var(--blue);    }
+  .status.success { display: block; background: #f0fdf4;     color: var(--success); }
+  .status.error   { display: block; background: #fef2f2;     color: var(--error);   }
 
   .spinner {
     display: inline-block;
@@ -247,7 +279,6 @@ HTML = """
     vertical-align: middle;
     margin-right: 6px;
   }
-
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .download-btn {
@@ -263,11 +294,12 @@ HTML = """
     text-decoration: none;
     transition: opacity 0.2s;
   }
-
   .download-btn:active { opacity: 0.85; }
-  .footer { margin-top: 28px; font-size: 11px; color: #94a3b8; text-align: center; }
+
+  .footer  { margin-top: 28px; font-size: 11px; color: #94a3b8; text-align: center; }
   .counter { margin-top: 10px; font-size: 12px; color: var(--gray); text-align: center; }
   .counter span { font-weight: 600; color: var(--navy); }
+  .counter span.warn { color: var(--warn); }
 </style>
 </head>
 <body>
@@ -280,6 +312,19 @@ HTML = """
 
 <div class="card">
 
+  <!-- API Key -->
+  <div class="field">
+    <label>🔑 API Key remove.bg</label>
+    <div class="api-row">
+      <input type="password" id="api-key-input" placeholder="Pega tu API key aquí"
+             oninput="onApiKeyChange()">
+      <button onclick="toggleApiVis()" title="Mostrar/ocultar">👁️</button>
+      <button onclick="guardarApiKey()" title="Guardar">💾</button>
+    </div>
+    <div class="api-saved" id="api-saved">✅ API key guardada en este dispositivo</div>
+  </div>
+
+  <!-- Firma -->
   <div class="field">
     <label>✍️ Imagen de la firma</label>
     <div class="file-btn" id="btn-firma" onclick="document.getElementById('input-firma').click()">
@@ -292,6 +337,7 @@ HTML = """
     <input type="file" id="input-firma" accept="image/*" onchange="setFile(this,'firma')">
   </div>
 
+  <!-- Foto -->
   <div class="field">
     <label>🖼️ Foto del marino</label>
     <div class="file-btn" id="btn-foto" onclick="document.getElementById('input-foto').click()">
@@ -319,18 +365,45 @@ HTML = """
 <p class="counter">Créditos remove.bg restantes: <span id="api-count">—</span></p>
 
 <script>
-async function actualizarContador() {
-  try {
-    const r = await fetch('/stats');
-    const d = await r.json();
-    document.getElementById('api-count').textContent =
-      d.creditos_restantes !== null ? d.creditos_restantes : '—';
-  } catch(_) {}
-}
-actualizarContador();
-
+const API_KEY_STORAGE = 'removebg_api_key';
 const files = { firma: null, foto: null };
 
+// ── Al cargar la página, restaurar API key guardada ──
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem(API_KEY_STORAGE);
+  if (saved) {
+    document.getElementById('api-key-input').value = saved;
+    document.getElementById('api-saved').style.display = 'block';
+  }
+  actualizarContador();
+  checkReady();
+});
+
+function onApiKeyChange() {
+  // Si el usuario edita, ocultar el mensaje de "guardada"
+  document.getElementById('api-saved').style.display = 'none';
+  checkReady();
+}
+
+function guardarApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val) { alert('Ingresa una API key primero.'); return; }
+  localStorage.setItem(API_KEY_STORAGE, val);
+  const msg = document.getElementById('api-saved');
+  msg.style.display = 'block';
+  msg.textContent = '✅ API key guardada en este dispositivo';
+}
+
+function toggleApiVis() {
+  const inp = document.getElementById('api-key-input');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function getApiKey() {
+  return document.getElementById('api-key-input').value.trim();
+}
+
+// ── Archivos ──
 function setFile(input, key) {
   const file = input.files[0];
   if (!file) return;
@@ -341,10 +414,30 @@ function setFile(input, key) {
 }
 
 function checkReady() {
-  document.getElementById('btn-gen').disabled = !(files.firma && files.foto);
+  document.getElementById('btn-gen').disabled =
+    !(files.firma && files.foto && getApiKey());
 }
 
+// ── Contador créditos ──
+async function actualizarContador() {
+  try {
+    const r = await fetch('/stats');
+    const d = await r.json();
+    const el = document.getElementById('api-count');
+    if (d.creditos_restantes !== null && d.creditos_restantes !== '?') {
+      el.textContent = d.creditos_restantes;
+      el.className = d.creditos_restantes < 10 ? 'warn' : '';
+    } else {
+      el.textContent = '—';
+    }
+  } catch(_) {}
+}
+
+// ── Generar ──
 async function generar() {
+  const apiKey = getApiKey();
+  if (!apiKey) { alert('Ingresa tu API key de remove.bg.'); return; }
+
   const btn    = document.getElementById('btn-gen');
   const status = document.getElementById('status');
   const dlBtn  = document.getElementById('download-btn');
@@ -355,8 +448,9 @@ async function generar() {
   status.innerHTML = '<span class="spinner"></span> Procesando... puede tomar ~20 segundos';
 
   const form = new FormData();
-  form.append('firma', files.firma);
-  form.append('foto',  files.foto);
+  form.append('firma',   files.firma);
+  form.append('foto',    files.foto);
+  form.append('api_key', apiKey);
 
   try {
     const resp = await fetch('/generar', { method: 'POST', body: form });
@@ -374,6 +468,10 @@ async function generar() {
     dlBtn.href     = url;
     dlBtn.download = 'F-76_llenado.pdf';
     dlBtn.style.display = 'block';
+
+    // Guardar la key automáticamente si funcionó
+    localStorage.setItem(API_KEY_STORAGE, apiKey);
+    document.getElementById('api-saved').style.display = 'block';
 
   } catch(e) {
     status.className = 'status error';
@@ -395,8 +493,10 @@ def index():
 
 @app.route("/generar", methods=["POST"])
 def generar():
-    if not REMOVEBG_API_KEY:
-        return jsonify({"error": "REMOVEBG_API_KEY no configurada en el servidor"}), 500
+    # La API key puede venir del env o del cliente
+    api_key = request.form.get("api_key", "").strip() or REMOVEBG_API_KEY
+    if not api_key:
+        return jsonify({"error": "Falta la API key de remove.bg"}), 400
 
     if not all(k in request.files for k in ["firma", "foto"]):
         return jsonify({"error": "Faltan archivos (firma, foto)"}), 400
@@ -410,12 +510,12 @@ def generar():
     foto_bytes  = request.files["foto"].read()
 
     try:
-        resultado = generar_pdf(pdf_bytes, firma_bytes, foto_bytes)
+        resultado = generar_pdf(pdf_bytes, firma_bytes, foto_bytes, api_key)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
     global _api_calls
-    _api_calls += 2  # firma + foto
+    _api_calls += 2
 
     return send_file(
         io.BytesIO(resultado),
@@ -426,12 +526,13 @@ def generar():
 
 @app.route("/stats")
 def stats():
-    if not REMOVEBG_API_KEY:
+    api_key = REMOVEBG_API_KEY
+    if not api_key:
         return jsonify({"api_calls": _api_calls, "creditos_restantes": None})
     try:
         r = req_lib.get(
             "https://api.remove.bg/v1.0/account",
-            headers={"X-Api-Key": REMOVEBG_API_KEY},
+            headers={"X-Api-Key": api_key},
             timeout=10,
         )
         data = r.json()
