@@ -14,6 +14,9 @@ app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
 
 REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY", "")
 
+# ── Contador de uso ───────────────────────────────────────────────────────────
+_api_calls = 0   # cada generación consume 2 llamadas (firma + foto)
+
 # ── PDF base ──────────────────────────────────────────────────────────────────
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _PDF_PATH = os.path.join(_BASE_DIR, "F-76_base.pdf")
@@ -263,6 +266,8 @@ HTML = """
 
   .download-btn:active { opacity: 0.85; }
   .footer { margin-top: 28px; font-size: 11px; color: #94a3b8; text-align: center; }
+  .counter { margin-top: 10px; font-size: 12px; color: var(--gray); text-align: center; }
+  .counter span { font-weight: 600; color: var(--navy); }
 </style>
 </head>
 <body>
@@ -311,8 +316,19 @@ HTML = """
 </div>
 
 <p class="footer">Los archivos se procesan de forma segura y no se almacenan.</p>
+<p class="counter">Créditos remove.bg restantes: <span id="api-count">—</span></p>
 
 <script>
+async function actualizarContador() {
+  try {
+    const r = await fetch('/stats');
+    const d = await r.json();
+    document.getElementById('api-count').textContent =
+      d.creditos_restantes !== null ? d.creditos_restantes : '—';
+  } catch(_) {}
+}
+actualizarContador();
+
 const files = { firma: null, foto: null };
 
 function setFile(input, key) {
@@ -353,6 +369,7 @@ async function generar() {
 
     status.className = 'status success';
     status.textContent = '✅ PDF generado exitosamente';
+    actualizarContador();
 
     dlBtn.href     = url;
     dlBtn.download = 'F-76_llenado.pdf';
@@ -397,12 +414,32 @@ def generar():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    global _api_calls
+    _api_calls += 2  # firma + foto
+
     return send_file(
         io.BytesIO(resultado),
         mimetype="application/pdf",
         as_attachment=True,
         download_name="F-76_llenado.pdf",
     )
+
+@app.route("/stats")
+def stats():
+    if not REMOVEBG_API_KEY:
+        return jsonify({"api_calls": _api_calls, "creditos_restantes": None})
+    try:
+        r = req_lib.get(
+            "https://api.remove.bg/v1.0/account",
+            headers={"X-Api-Key": REMOVEBG_API_KEY},
+            timeout=10,
+        )
+        data = r.json()
+        creditos = data.get("data", {}).get("attributes", {}).get("credits", {})
+        restantes = creditos.get("total", "?")
+    except Exception:
+        restantes = "?"
+    return jsonify({"api_calls": _api_calls, "creditos_restantes": restantes})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
