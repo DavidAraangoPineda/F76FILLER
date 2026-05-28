@@ -5,8 +5,6 @@ Flask backend para desplegar en Render.com
 
 import io
 import os
-import threading
-import tkinter as tk
 from flask import Flask, request, send_file, render_template_string, jsonify
 from PIL import Image
 import requests as req_lib
