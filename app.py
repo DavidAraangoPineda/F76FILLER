@@ -1,0 +1,420 @@
+"""
+F-76 Form Filler — Web App
+Flask backend para desplegar en Render.com
+"""
+
+import io
+import os
+import threading
+import tkinter as tk
+from flask import Flask, request, send_file, render_template_string, jsonify
+from PIL import Image
+import requests as req_lib
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024
+
+REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY", "")
+
+# ── PDF base ──────────────────────────────────────────────────────────────────
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_PDF_PATH = os.path.join(_BASE_DIR, "F-76_base.pdf")
+
+def obtener_pdf_base() -> bytes:
+    if os.path.exists(_PDF_PATH):
+        with open(_PDF_PATH, "rb") as f:
+            return f.read()
+    raise FileNotFoundError("No se encontró F-76_base.pdf en el servidor.")
+
+# ── Procesamiento ─────────────────────────────────────────────────────────────
+
+def quitar_fondo_api(imagen_bytes: bytes, api_key: str) -> bytes:
+    resp = req_lib.post(
+        "https://api.remove.bg/v1.0/removebg",
+        files={"image_file": ("image", imagen_bytes)},
+        data={"size": "auto"},
+        headers={"X-Api-Key": api_key},
+        timeout=60,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"remove.bg respondió {resp.status_code}: {resp.text[:200]}")
+    return resp.content
+
+def oscurecer_firma(img_rgba):
+    import numpy as np
+    arr = np.array(img_rgba).astype(float)
+    alpha = arr[:, :, 3]
+    visible = alpha > 30
+    if not visible.any():
+        return img_rgba
+    brillo = arr[:, :, :3].mean(axis=2)[visible].mean()
+    if brillo > 100:
+        arr[visible, 0] = 0
+        arr[visible, 1] = 0
+        arr[visible, 2] = 0
+    return Image.fromarray(arr.astype("uint8"), "RGBA")
+
+def procesar_firma(raw: bytes, api_key: str) -> io.BytesIO:
+    sin_fondo = quitar_fondo_api(raw, api_key)
+    img = Image.open(io.BytesIO(sin_fondo)).convert("RGBA")
+    img = oscurecer_firma(img)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    buf.seek(0)
+    return buf
+
+def procesar_foto(raw: bytes, api_key: str) -> io.BytesIO:
+    sin_fondo = quitar_fondo_api(raw, api_key)
+    return io.BytesIO(sin_fondo)
+
+def generar_pdf(pdf_bytes, firma_bytes, foto_bytes) -> bytes:
+    from pypdf import PdfReader, PdfWriter
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.utils import ImageReader
+
+    firma_buf = procesar_firma(firma_bytes, REMOVEBG_API_KEY)
+    foto_buf  = procesar_foto(foto_bytes,  REMOVEBG_API_KEY)
+
+    FIRMA = dict(x=105, y=105, w=210, h=75)
+    FOTO  = dict(x=405, y=73,  w=115, h=100)
+
+    packet = io.BytesIO()
+    c = rl_canvas.Canvas(packet, pagesize=(612, 1008))
+    c.drawImage(ImageReader(foto_buf),
+                x=FOTO["x"], y=FOTO["y"],
+                width=FOTO["w"], height=FOTO["h"],
+                preserveAspectRatio=True, anchor="c", mask="auto")
+    c.drawImage(ImageReader(firma_buf),
+                x=FIRMA["x"], y=FIRMA["y"],
+                width=FIRMA["w"], height=FIRMA["h"],
+                preserveAspectRatio=True, anchor="c", mask="auto")
+    c.save()
+    packet.seek(0)
+
+    blank   = PdfReader(io.BytesIO(pdf_bytes))
+    overlay = PdfReader(packet)
+    writer  = PdfWriter()
+    pagina  = blank.pages[0]
+    pagina.merge_page(overlay.pages[0])
+    writer.add_page(pagina)
+
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+# ── HTML ──────────────────────────────────────────────────────────────────────
+
+HTML = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>F-76 Form Filler</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --navy: #0f2040;
+    --blue: #1a56db;
+    --sky: #e8f0fe;
+    --white: #ffffff;
+    --gray: #6b7280;
+    --light: #f8fafc;
+    --border: #dde3ed;
+    --success: #16a34a;
+    --error: #dc2626;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--light);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+  }
+
+  header { text-align: center; margin-bottom: 32px; }
+  .flag  { font-size: 36px; margin-bottom: 8px; }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle { font-size: 13px; color: var(--gray); margin-top: 4px; font-weight: 300; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 4px 24px rgba(15,32,64,0.07);
+  }
+
+  .field { margin-bottom: 18px; }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+
+  .file-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1.5px dashed var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--light);
+  }
+
+  .file-btn:active { background: var(--sky); }
+  .file-btn .icon  { font-size: 22px; flex-shrink: 0; }
+  .file-btn .text  { flex: 1; min-width: 0; }
+  .file-btn .label { font-size: 13px; font-weight: 500; color: var(--navy); }
+
+  .file-btn .hint {
+    font-size: 11px;
+    color: var(--gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-btn.selected { border-color: var(--blue); border-style: solid; background: var(--sky); }
+  .file-btn.selected .hint { color: var(--blue); }
+
+  input[type="file"] { display: none; }
+
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  .btn-generate {
+    width: 100%;
+    padding: 15px;
+    background: var(--navy);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 0.2px;
+  }
+
+  .btn-generate:active   { transform: scale(0.98); }
+  .btn-generate:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  .status {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    display: none;
+    text-align: center;
+  }
+
+  .status.loading { display: block; background: var(--sky);    color: var(--blue);    }
+  .status.success { display: block; background: #f0fdf4;       color: var(--success); }
+  .status.error   { display: block; background: #fef2f2;       color: var(--error);   }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--blue);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .download-btn {
+    display: block;
+    margin-top: 12px;
+    padding: 13px;
+    background: var(--success);
+    color: white;
+    text-align: center;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  .download-btn:active { opacity: 0.85; }
+  .footer { margin-top: 28px; font-size: 11px; color: #94a3b8; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="flag">🇵🇦</div>
+  <h1>F-76 Form Filler</h1>
+  <p class="subtitle">Autoridad Marítima de Panamá</p>
+</header>
+
+<div class="card">
+
+  <div class="field">
+    <label>📄 Formulario F-76 (PDF vacío)</label>
+    <div class="file-btn" id="btn-pdf" onclick="document.getElementById('input-pdf').click()">
+      <span class="icon">📋</span>
+      <div class="text">
+        <div class="label">Seleccionar PDF</div>
+        <div class="hint" id="hint-pdf">Ningún archivo seleccionado</div>
+      </div>
+    </div>
+    <input type="file" id="input-pdf" accept=".pdf" onchange="setFile(this,'pdf')">
+  </div>
+
+  <div class="field">
+    <label>✍️ Imagen de la firma</label>
+    <div class="file-btn" id="btn-firma" onclick="document.getElementById('input-firma').click()">
+      <span class="icon">🖊️</span>
+      <div class="text">
+        <div class="label">Seleccionar firma</div>
+        <div class="hint" id="hint-firma">JPG, PNG o HEIC</div>
+      </div>
+    </div>
+    <input type="file" id="input-firma" accept="image/*" onchange="setFile(this,'firma')">
+  </div>
+
+  <div class="field">
+    <label>🖼️ Foto del marino</label>
+    <div class="file-btn" id="btn-foto" onclick="document.getElementById('input-foto').click()">
+      <span class="icon">👤</span>
+      <div class="text">
+        <div class="label">Seleccionar foto</div>
+        <div class="hint" id="hint-foto">JPG, PNG o HEIC</div>
+      </div>
+    </div>
+    <input type="file" id="input-foto" accept="image/*" onchange="setFile(this,'foto')">
+  </div>
+
+  <div class="divider"></div>
+
+  <button class="btn-generate" id="btn-gen" onclick="generar()" disabled>
+    Generar PDF
+  </button>
+
+  <div class="status" id="status"></div>
+  <a class="download-btn" id="download-btn" style="display:none">⬇️ Descargar PDF</a>
+
+</div>
+
+<p class="footer">Los archivos se procesan de forma segura y no se almacenan.</p>
+
+<script>
+const files = { pdf: null, firma: null, foto: null };
+
+function setFile(input, key) {
+  const file = input.files[0];
+  if (!file) return;
+  files[key] = file;
+  document.getElementById('hint-' + key).textContent = file.name;
+  document.getElementById('btn-'  + key).classList.add('selected');
+  checkReady();
+}
+
+function checkReady() {
+  document.getElementById('btn-gen').disabled = !(files.pdf && files.firma && files.foto);
+}
+
+async function generar() {
+  const btn    = document.getElementById('btn-gen');
+  const status = document.getElementById('status');
+  const dlBtn  = document.getElementById('download-btn');
+
+  btn.disabled = true;
+  dlBtn.style.display = 'none';
+  status.className = 'status loading';
+  status.innerHTML = '<span class="spinner"></span> Procesando... puede tomar ~20 segundos';
+
+  const form = new FormData();
+  form.append('pdf',   files.pdf);
+  form.append('firma', files.firma);
+  form.append('foto',  files.foto);
+
+  try {
+    const resp = await fetch('/generar', { method: 'POST', body: form });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Error desconocido' }));
+      throw new Error(err.error || 'HTTP ' + resp.status);
+    }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+
+    status.className = 'status success';
+    status.textContent = '✅ PDF generado exitosamente';
+
+    dlBtn.href     = url;
+    dlBtn.download = 'F-76_llenado.pdf';
+    dlBtn.style.display = 'block';
+
+  } catch(e) {
+    status.className = 'status error';
+    status.textContent = '❌ ' + e.message;
+  }
+
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
+"""
+
+# ── Rutas ─────────────────────────────────────────────────────────────────────
+
+@app.route("/")
+def index():
+    return render_template_string(HTML)
+
+@app.route("/generar", methods=["POST"])
+def generar():
+    if not REMOVEBG_API_KEY:
+        return jsonify({"error": "REMOVEBG_API_KEY no configurada en el servidor"}), 500
+
+    if not all(k in request.files for k in ["pdf", "firma", "foto"]):
+        return jsonify({"error": "Faltan archivos (pdf, firma, foto)"}), 400
+
+    pdf_bytes   = request.files["pdf"].read()
+    firma_bytes = request.files["firma"].read()
+    foto_bytes  = request.files["foto"].read()
+
+    try:
+        resultado = generar_pdf(pdf_bytes, firma_bytes, foto_bytes)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return send_file(
+        io.BytesIO(resultado),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="F-76_llenado.pdf",
+    )
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
