@@ -276,18 +276,6 @@ HTML = """
 <div class="card">
 
   <div class="field">
-    <label>📄 Formulario F-76 (PDF vacío)</label>
-    <div class="file-btn" id="btn-pdf" onclick="document.getElementById('input-pdf').click()">
-      <span class="icon">📋</span>
-      <div class="text">
-        <div class="label">Seleccionar PDF</div>
-        <div class="hint" id="hint-pdf">Ningún archivo seleccionado</div>
-      </div>
-    </div>
-    <input type="file" id="input-pdf" accept=".pdf" onchange="setFile(this,'pdf')">
-  </div>
-
-  <div class="field">
     <label>✍️ Imagen de la firma</label>
     <div class="file-btn" id="btn-firma" onclick="document.getElementById('input-firma').click()">
       <span class="icon">🖊️</span>
@@ -325,7 +313,7 @@ HTML = """
 <p class="footer">Los archivos se procesan de forma segura y no se almacenan.</p>
 
 <script>
-const files = { pdf: null, firma: null, foto: null };
+const files = { firma: null, foto: null };
 
 function setFile(input, key) {
   const file = input.files[0];
@@ -337,7 +325,7 @@ function setFile(input, key) {
 }
 
 function checkReady() {
-  document.getElementById('btn-gen').disabled = !(files.pdf && files.firma && files.foto);
+  document.getElementById('btn-gen').disabled = !(files.firma && files.foto);
 }
 
 async function generar() {
@@ -351,7 +339,6 @@ async function generar() {
   status.innerHTML = '<span class="spinner"></span> Procesando... puede tomar ~20 segundos';
 
   const form = new FormData();
-  form.append('pdf',   files.pdf);
   form.append('firma', files.firma);
   form.append('foto',  files.foto);
 
@@ -394,10 +381,14 @@ def generar():
     if not REMOVEBG_API_KEY:
         return jsonify({"error": "REMOVEBG_API_KEY no configurada en el servidor"}), 500
 
-    if not all(k in request.files for k in ["pdf", "firma", "foto"]):
-        return jsonify({"error": "Faltan archivos (pdf, firma, foto)"}), 400
+    if not all(k in request.files for k in ["firma", "foto"]):
+        return jsonify({"error": "Faltan archivos (firma, foto)"}), 400
 
-    pdf_bytes   = request.files["pdf"].read()
+    try:
+        pdf_bytes = obtener_pdf_base()
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 500
+
     firma_bytes = request.files["firma"].read()
     foto_bytes  = request.files["foto"].read()
 
