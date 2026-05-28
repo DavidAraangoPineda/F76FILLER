@@ -536,8 +536,12 @@ def stats():
             timeout=10,
         )
         data = r.json()
-        creditos = data.get("data", {}).get("attributes", {}).get("credits", {})
-        restantes = creditos.get("total", "?")
+        attrs    = data.get("data", {}).get("attributes", {})
+        creditos = attrs.get("credits", {})
+        # remove.bg usa subscription + payg, no "total"
+        sub       = creditos.get("subscription", 0) or 0
+        payg      = creditos.get("payg", 0) or 0
+        restantes = sub + payg
     except Exception:
         restantes = "?"
     return jsonify({"api_calls": _api_calls, "creditos_restantes": restantes})
