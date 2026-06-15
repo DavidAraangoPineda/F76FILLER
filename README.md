@@ -26,7 +26,7 @@
   - Value: tu API key
 
 ### 4. ¡Listo!
-Render te da una URL tipo `https://f76-filler.onrender.com`
+Render te da una URL tipo `(https://f76filler.onrender.com)`
 Ábrela desde cualquier dispositivo.
 
 ## Notas
