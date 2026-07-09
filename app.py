@@ -5,9 +5,7 @@ Flask backend para desplegar en Render.com
 
 import io
 import os
-import time
-import uuid
-from flask import Flask, request, send_file, render_template_string, jsonify, abort
+from flask import Flask, request, send_file, render_template_string, jsonify
 from PIL import Image
 import requests as req_lib
 
@@ -18,16 +16,6 @@ REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY", "")
 
 # ── Contador de uso ───────────────────────────────────────────────────────────
 _api_calls = 0
-
-# ── Caché de PDFs generados (para descarga directa vía URL real) ──────────────
-_PDF_CACHE_TTL = 5 * 60  # segundos
-_pdf_cache = {}  # token -> (bytes, timestamp)
-
-def _limpiar_pdf_cache():
-    ahora = time.time()
-    vencidos = [tok for tok, (_, ts) in _pdf_cache.items() if ahora - ts > _PDF_CACHE_TTL]
-    for tok in vencidos:
-        _pdf_cache.pop(tok, None)
 
 # ── PDF base ──────────────────────────────────────────────────────────────────
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -468,15 +456,15 @@ async function generar() {
       const err = await resp.json().catch(() => ({ error: 'Error desconocido' }));
       throw new Error(err.error || 'HTTP ' + resp.status);
     }
-    const data = await resp.json();
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
 
     status.className = 'status success';
     status.textContent = '✅ PDF generado exitosamente';
     actualizarContador();
 
-    dlBtn.href     = '/descargar/' + data.token;
-    dlBtn.target   = '_blank';
-    dlBtn.rel      = 'noopener';
+    dlBtn.href     = url;
+    dlBtn.download = 'F-76_llenado.pdf';
     dlBtn.style.display = 'block';
 
     // Guardar la key automáticamente si funcionó
@@ -527,22 +515,10 @@ def generar():
     global _api_calls
     _api_calls += 2
 
-    _limpiar_pdf_cache()
-    token = uuid.uuid4().hex
-    _pdf_cache[token] = (resultado, time.time())
-
-    return jsonify({"token": token})
-
-@app.route("/descargar/<token>")
-def descargar(token):
-    entrada = _pdf_cache.get(token)
-    if entrada is None:
-        abort(404)
-    pdf_bytes, _ = entrada
     return send_file(
-        io.BytesIO(pdf_bytes),
+        io.BytesIO(resultado),
         mimetype="application/pdf",
-        as_attachment=False,
+        as_attachment=True,
         download_name="F-76_llenado.pdf",
     )
 
