@@ -475,7 +475,8 @@ async function generar() {
     actualizarContador();
 
     dlBtn.href     = '/descargar/' + data.token;
-    dlBtn.download = 'F-76_llenado.pdf';
+    dlBtn.target   = '_blank';
+    dlBtn.rel      = 'noopener';
     dlBtn.style.display = 'block';
 
     // Guardar la key automáticamente si funcionó
