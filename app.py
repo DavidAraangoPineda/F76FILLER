@@ -5,7 +5,9 @@ Flask backend para desplegar en Render.com
 
 import io
 import os
-from flask import Flask, request, send_file, render_template_string, jsonify
+import time
+import uuid
+from flask import Flask, request, send_file, render_template_string, jsonify, abort
 from PIL import Image
 import requests as req_lib
 
@@ -16,6 +18,16 @@ REMOVEBG_API_KEY = os.environ.get("REMOVEBG_API_KEY", "")
 
 # ── Contador de uso ───────────────────────────────────────────────────────────
 _api_calls = 0
+
+# ── Caché de PDFs generados (para descarga directa vía URL real) ──────────────
+_PDF_CACHE_TTL = 5 * 60  # segundos
+_pdf_cache = {}  # token -> (bytes, timestamp)
+
+def _limpiar_pdf_cache():
+    ahora = time.time()
+    vencidos = [tok for tok, (_, ts) in _pdf_cache.items() if ahora - ts > _PDF_CACHE_TTL]
+    for tok in vencidos:
+        _pdf_cache.pop(tok, None)
 
 # ── PDF base ──────────────────────────────────────────────────────────────────
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -48,11 +60,9 @@ def oscurecer_firma(img_rgba):
     visible = alpha > 30
     if not visible.any():
         return img_rgba
-    brillo = arr[:, :, :3].mean(axis=2)[visible].mean()
-    if brillo > 100:
-        arr[visible, 0] = 0
-        arr[visible, 1] = 0
-        arr[visible, 2] = 0
+    arr[visible, 0] = 0
+    arr[visible, 1] = 0
+    arr[visible, 2] = 0
     return Image.fromarray(arr.astype("uint8"), "RGBA")
 
 def procesar_firma(raw: bytes, api_key: str) -> io.BytesIO:
@@ -458,14 +468,13 @@ async function generar() {
       const err = await resp.json().catch(() => ({ error: 'Error desconocido' }));
       throw new Error(err.error || 'HTTP ' + resp.status);
     }
-    const blob = await resp.blob();
-    const url  = URL.createObjectURL(blob);
+    const data = await resp.json();
 
     status.className = 'status success';
     status.textContent = '✅ PDF generado exitosamente';
     actualizarContador();
 
-    dlBtn.href     = url;
+    dlBtn.href     = '/descargar/' + data.token;
     dlBtn.download = 'F-76_llenado.pdf';
     dlBtn.style.display = 'block';
 
@@ -517,8 +526,20 @@ def generar():
     global _api_calls
     _api_calls += 2
 
+    _limpiar_pdf_cache()
+    token = uuid.uuid4().hex
+    _pdf_cache[token] = (resultado, time.time())
+
+    return jsonify({"token": token})
+
+@app.route("/descargar/<token>")
+def descargar(token):
+    entrada = _pdf_cache.pop(token, None)
+    if entrada is None:
+        abort(404)
+    pdf_bytes, _ = entrada
     return send_file(
-        io.BytesIO(resultado),
+        io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
         as_attachment=True,
         download_name="F-76_llenado.pdf",
