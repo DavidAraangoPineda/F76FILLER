@@ -294,6 +294,14 @@ HTML = """
   }
   .download-btn:active { opacity: 0.85; }
 
+  .share-btn {
+    width: 100%;
+    border: none;
+    background: var(--blue);
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
   .footer  { margin-top: 28px; font-size: 11px; color: #94a3b8; text-align: center; }
   .counter { margin-top: 10px; font-size: 12px; color: var(--gray); text-align: center; }
   .counter span { font-weight: 600; color: var(--navy); }
@@ -356,6 +364,7 @@ HTML = """
 
   <div class="status" id="status"></div>
   <a class="download-btn" id="download-btn" style="display:none">⬇️ Descargar PDF</a>
+  <button class="download-btn share-btn" id="share-btn" style="display:none" onclick="compartirPdf()">📤 Compartir PDF</button>
 
 </div>
 
@@ -432,16 +441,20 @@ async function actualizarContador() {
 }
 
 // ── Generar ──
+let pdfFile = null;
+
 async function generar() {
   const apiKey = getApiKey();
   if (!apiKey) { alert('Ingresa tu API key de remove.bg.'); return; }
 
-  const btn    = document.getElementById('btn-gen');
-  const status = document.getElementById('status');
-  const dlBtn  = document.getElementById('download-btn');
+  const btn      = document.getElementById('btn-gen');
+  const status   = document.getElementById('status');
+  const dlBtn    = document.getElementById('download-btn');
+  const shareBtn = document.getElementById('share-btn');
 
   btn.disabled = true;
   dlBtn.style.display = 'none';
+  shareBtn.style.display = 'none';
   status.className = 'status loading';
   status.innerHTML = '<span class="spinner"></span> Procesando... puede tomar ~20 segundos';
 
@@ -458,6 +471,7 @@ async function generar() {
     }
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
+    pdfFile = new File([blob], 'F-76_llenado.pdf', { type: 'application/pdf' });
 
     status.className = 'status success';
     status.textContent = '✅ PDF generado exitosamente';
@@ -466,6 +480,10 @@ async function generar() {
     dlBtn.href     = url;
     dlBtn.download = 'F-76_llenado.pdf';
     dlBtn.style.display = 'block';
+
+    if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      shareBtn.style.display = 'block';
+    }
 
     // Guardar la key automáticamente si funcionó
     localStorage.setItem(API_KEY_STORAGE, apiKey);
@@ -477,6 +495,16 @@ async function generar() {
   }
 
   btn.disabled = false;
+}
+
+// ── Compartir (sin adjuntar ningún link, solo el archivo) ──
+async function compartirPdf() {
+  if (!pdfFile) return;
+  try {
+    await navigator.share({ files: [pdfFile] });
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('No se pudo compartir: ' + e.message);
+  }
 }
 </script>
 </body>
