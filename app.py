@@ -534,14 +534,14 @@ def generar():
 
 @app.route("/descargar/<token>")
 def descargar(token):
-    entrada = _pdf_cache.pop(token, None)
+    entrada = _pdf_cache.get(token)
     if entrada is None:
         abort(404)
     pdf_bytes, _ = entrada
     return send_file(
         io.BytesIO(pdf_bytes),
         mimetype="application/pdf",
-        as_attachment=True,
+        as_attachment=False,
         download_name="F-76_llenado.pdf",
     )
 
