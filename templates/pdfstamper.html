@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PDF Stamper</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='pdfstamper/style.css') }}">
+</head>
+<body>
+
+<header>
+  <div class="flag">📄</div>
+  <h1>PDF Stamper</h1>
+  <p class="subtitle">Inserta texto en una posición exacta de tu PDF</p>
+</header>
+
+<div class="layout">
+<div class="card">
+
+  <!-- PDF base -->
+  <div class="field">
+    <label>📄 PDF base</label>
+    {% if pdfs_disponibles %}
+    <select id="select-pdf-predeterminado" onchange="seleccionarPdfPredeterminado(this)">
+      <option value="" disabled selected>— Elegí un PDF —</option>
+      {% for nombre in pdfs_disponibles.keys() %}
+      <option value="{{ nombre }}">{{ nombre }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <div class="file-btn" id="btn-pdf" onclick="document.getElementById('input-pdf').click()">
+      <span class="icon">📄</span>
+      <div class="text">
+        <div class="label">Seleccionar PDF</div>
+        <div class="hint" id="hint-pdf">El documento donde se insertará el texto</div>
+      </div>
+    </div>
+    <input type="file" id="input-pdf" accept="application/pdf" onchange="setFile(this,'pdf')">
+    {% endif %}
+  </div>
+
+  <!-- Matriz de textos -->
+  <div class="field">
+    <label>🔠 Matriz de textos (hasta {{ matrix_filas }} filas)</label>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Texto</th>
+            <th>Fuente</th>
+            <th>X</th>
+            <th>Y</th>
+            <th>Tam.</th>
+            <th title="Si está marcado, X/Y es el centro del texto (mitad a cada lado) en vez del borde izquierdo">Centrado</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for i in range(1, matrix_filas + 1) %}
+        {% set fila = filas_predeterminadas.get(i, {}) %}
+          <tr>
+            <td class="m-num">{{ i }}</td>
+            <td><input type="text" class="m-texto" data-row="{{ i }}" value="{{ fila.get('texto', '') }}" placeholder="Texto {{ i }}" oninput="checkReady()"></td>
+            <td><input type="text" class="m-fuente" data-row="{{ i }}" value="{{ fila.get('fuente', '') }}" placeholder="Coronet MT Std Bold" title="Nombre del archivo .ttf/.otf en la carpeta del proyecto"></td>
+            <td><input type="number" class="m-x" data-row="{{ i }}" value="{{ fila.get('x', 0) }}" step="1"></td>
+            <td><input type="number" class="m-y" data-row="{{ i }}" value="{{ fila.get('y', 0) }}" step="1"></td>
+            <td><input type="number" class="m-tamano" data-row="{{ i }}" value="{{ fila.get('tamano', 14) }}" min="1" step="1"></td>
+            <td class="m-centrado-td"><input type="checkbox" class="m-centrado" data-row="{{ i }}" {% if fila.get('centrado') %}checked{% endif %}></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Página -->
+  <div class="row2">
+    <div class="field">
+      <label># Página</label>
+      <input type="number" id="pagina" value="1" min="1" step="1">
+    </div>
+    <div class="field">
+      <label>🎨 Color del texto</label>
+      <input type="color" id="color" value="{{ color_por_defecto }}">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <button class="btn-generate btn-secondary" id="btn-grid" onclick="generarRejilla()" disabled>
+    📐 Descargar rejilla de calibración
+  </button>
+
+  <button class="btn-generate" id="btn-gen" onclick="generar()" disabled>
+    Descargar PDF
+  </button>
+
+  <div class="status" id="status"></div>
+  <a class="download-btn" id="download-btn" style="display:none">⬇️ Descargar PDF</a>
+
+</div>
+
+<!-- Vista previa en vivo -->
+<div class="preview-pane">
+  <label>👁️ Vista previa en vivo</label>
+  <div class="preview-tabs">
+    <button type="button" class="tab-btn active" id="tab-pdf" onclick="cambiarVista('pdf')">PDF final</button>
+    <button type="button" class="tab-btn" id="tab-grid" onclick="cambiarVista('grid')">Rejilla con posiciones</button>
+  </div>
+  <div class="preview-wrap">
+    <iframe id="preview-frame" class="preview-frame" style="display:none"></iframe>
+    <div class="preview-placeholder" id="preview-placeholder">
+      Subí un PDF y escribí texto en alguna fila para ver la vista previa acá. Se actualiza sola con cada cambio.
+    </div>
+  </div>
+</div>
+
+</div>
+
+<p class="footer">Los archivos se procesan de forma segura y no se almacenan.</p>
+
+<script src="{{ url_for('static', filename='pdfstamper/app.js') }}"></script>
+</body>
+</html>

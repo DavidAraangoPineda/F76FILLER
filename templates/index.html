@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Herramientas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --navy: #0f2040;
+    --blue: #1a56db;
+    --white: #ffffff;
+    --gray: #6b7280;
+    --light: #f8fafc;
+    --border: #dde3ed;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--light);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 16px;
+  }
+
+  h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    color: var(--navy);
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .menu {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .tool-card {
+    display: block;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    text-decoration: none;
+    box-shadow: 0 4px 24px rgba(15,32,64,0.07);
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .tool-card:hover { transform: translateY(-2px); border-color: var(--blue); }
+
+  .tool-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .tool-card .titulo {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .tool-card .desc { font-size: 13px; color: var(--gray); }
+</style>
+</head>
+<body>
+
+<h1>🛠️ Herramientas</h1>
+
+<div class="menu">
+  <a class="tool-card" href="{{ url_for('pdfstamper.index') }}">
+    <div class="icon">📄</div>
+    <div class="titulo">PDF Stamper</div>
+    <div class="desc">Insertá texto e imágenes en posiciones exactas de cualquier PDF.</div>
+  </a>
+
+  <a class="tool-card" href="{{ url_for('f76.index') }}">
+    <div class="icon">🇵🇦</div>
+    <div class="titulo">F-76 Form Filler</div>
+    <div class="desc">Completá el formulario F-76 con firma y foto (Autoridad Marítima de Panamá).</div>
+  </a>
+</div>
+
+</body>
+</html>

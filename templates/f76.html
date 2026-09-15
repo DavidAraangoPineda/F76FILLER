@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>F-76 Form Filler</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='f76/style.css') }}">
+</head>
+<body>
+
+<header>
+  <div class="flag">🇵🇦</div>
+  <h1>F-76 Form Filler</h1>
+  <p class="subtitle">Autoridad Marítima de Panamá</p>
+</header>
+
+<div class="card">
+
+  <!-- API Key -->
+  <div class="field">
+    <label>🔑 API Key remove.bg</label>
+    <div class="api-row">
+      <input type="password" id="api-key-input" placeholder="Pega tu API key aquí"
+             oninput="onApiKeyChange()">
+      <button onclick="toggleApiVis()" title="Mostrar/ocultar">👁️</button>
+      <button onclick="guardarApiKey()" title="Guardar">💾</button>
+    </div>
+    <div class="api-saved" id="api-saved">✅ API key guardada en este dispositivo</div>
+  </div>
+
+  <!-- Firma -->
+  <div class="field">
+    <label>✍️ Imagen de la firma</label>
+    <div class="file-btn" id="btn-firma" onclick="document.getElementById('input-firma').click()">
+      <span class="icon">🖊️</span>
+      <div class="text">
+        <div class="label">Seleccionar firma</div>
+        <div class="hint" id="hint-firma">JPG, PNG o HEIC</div>
+      </div>
+    </div>
+    <input type="file" id="input-firma" accept="image/*" onchange="setFile(this,'firma')">
+  </div>
+
+  <!-- Foto -->
+  <div class="field">
+    <label>🖼️ Foto del marino</label>
+    <div class="file-btn" id="btn-foto" onclick="document.getElementById('input-foto').click()">
+      <span class="icon">👤</span>
+      <div class="text">
+        <div class="label">Seleccionar foto</div>
+        <div class="hint" id="hint-foto">JPG, PNG o HEIC</div>
+      </div>
+    </div>
+    <input type="file" id="input-foto" accept="image/*" onchange="setFile(this,'foto')">
+  </div>
+
+  <div class="divider"></div>
+
+  <button class="btn-generate" id="btn-gen" onclick="generar()" disabled>
+    Generar PDF
+  </button>
+
+  <div class="status" id="status"></div>
+  <a class="download-btn" id="download-btn" style="display:none">⬇️ Descargar PDF</a>
+  <button class="download-btn share-btn" id="share-btn" style="display:none" onclick="compartirPdf()">📤 Compartir PDF</button>
+
+</div>
+
+<p class="footer">Los archivos se procesan de forma segura y no se almacenan.</p>
+<p class="counter">Créditos remove.bg restantes: <span id="api-count">—</span></p>
+
+<script src="{{ url_for('static', filename='f76/app.js') }}"></script>
+</body>
+</html>
