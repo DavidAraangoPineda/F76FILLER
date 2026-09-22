@@ -13,7 +13,7 @@ from flask import Blueprint, request, send_file, render_template, jsonify
 
 from config import (
     COLOR_POR_DEFECTO,
-    FILAS_PREDETERMINADAS,
+    FILAS_PREDETERMINADAS_SIN_PDF,
     IMAGENES_PREDETERMINADAS,
     MATRIX_FILAS,
     PDFS_DISPONIBLES,
@@ -51,10 +51,16 @@ def _nombre_descarga(texto_fila1: str, nombre_pdf_subido: "str | None") -> str:
 
 @pdfstamper_bp.route("/")
 def index():
+    # Sin un PDF elegido todavía, la matriz arranca vacía: se rellena sola
+    # (vía JS, con lo que definas en PDFS_DISPONIBLES[...]["filas"] de
+    # config.py, texto predeterminado incluido) apenas se elige un PDF del
+    # desplegable. Si no hay desplegable (PDFS_DISPONIBLES vacío, formulario
+    # en modo "subir archivo"), se usa el respaldo de config.py.
+    filas_iniciales = {} if PDFS_DISPONIBLES else FILAS_PREDETERMINADAS_SIN_PDF
     return render_template(
         "pdfstamper.html",
         matrix_filas=MATRIX_FILAS,
-        filas_predeterminadas=FILAS_PREDETERMINADAS,
+        filas_predeterminadas=filas_iniciales,
         color_por_defecto=COLOR_POR_DEFECTO,
         pdfs_disponibles=PDFS_DISPONIBLES,
     )
@@ -63,9 +69,10 @@ def index():
 @pdfstamper_bp.route("/pdf_predeterminado")
 def pdf_predeterminado():
     nombre = request.args.get("nombre", "")
-    archivo = PDFS_DISPONIBLES.get(nombre)
-    if not archivo:
+    entrada = PDFS_DISPONIBLES.get(nombre)
+    if not entrada:
         return jsonify({"error": f"No existe el PDF predeterminado '{nombre}'"}), 404
+    archivo = entrada.get("archivo", "")
 
     try:
         pdf_bytes = leer_pdf_predeterminado(archivo)
@@ -73,6 +80,32 @@ def pdf_predeterminado():
         return jsonify({"error": f"No se encontró el archivo del PDF '{nombre}': {archivo}"}), 400
 
     return send_file(io.BytesIO(pdf_bytes), mimetype="application/pdf", download_name=archivo)
+
+
+@pdfstamper_bp.route("/pdf_predeterminado/filas")
+def pdf_predeterminado_filas():
+    """Valores propios (texto/placeholder/fuente/X/Y/tamaño/centrado) del PDF
+    predeterminado `nombre`, para rellenar la matriz al elegirlo en el
+    desplegable."""
+    nombre = request.args.get("nombre", "")
+    entrada = PDFS_DISPONIBLES.get(nombre)
+    if not entrada:
+        return jsonify({"error": f"No existe el PDF predeterminado '{nombre}'"}), 404
+
+    filas_config = entrada.get("filas", {})
+    filas = {}
+    for i in range(1, MATRIX_FILAS + 1):
+        fila = filas_config.get(i, {})
+        filas[i] = {
+            "texto": fila.get("texto", ""),
+            "placeholder": fila.get("placeholder", ""),
+            "fuente": fila.get("fuente", ""),
+            "x": fila.get("x", 0),
+            "y": fila.get("y", 0),
+            "tamano": fila.get("tamano", 14),
+            "centrado": bool(fila.get("centrado", False)),
+        }
+    return jsonify({"filas": filas})
 
 
 @pdfstamper_bp.route("/rejilla", methods=["POST"])
@@ -125,8 +158,12 @@ def generar():
         return jsonify({"error": "Número de página inválido"}), 400
 
     color = request.form.get("color", "#000000")
+    nombre_pdf_predeterminado = request.form.get("nombre_pdf", "").strip()
     nombre_pdf_subido = request.files["pdf"].filename
     pdf_bytes = request.files["pdf"].read()
+
+    entrada_pdf = PDFS_DISPONIBLES.get(nombre_pdf_predeterminado) if nombre_pdf_predeterminado else None
+    filas_predeterminadas_pdf = entrada_pdf.get("filas", {}) if entrada_pdf else FILAS_PREDETERMINADAS_SIN_PDF
 
     stamps = []
     for i in range(1, MATRIX_FILAS + 1):
@@ -142,7 +179,7 @@ def generar():
 
         fuente_nombre = request.form.get(f"fuente_{i}", "").strip()
         if not fuente_nombre:
-            fuente_nombre = FILAS_PREDETERMINADAS.get(i, {}).get("fuente", "")
+            fuente_nombre = filas_predeterminadas_pdf.get(i, {}).get("fuente", "")
 
         if fuente_nombre:
             try:
@@ -161,8 +198,10 @@ def generar():
             "font_bytes": font_bytes, "etiqueta": str(i), "centrado": centrado,
         })
 
+    imagenes_config = entrada_pdf.get("imagenes", IMAGENES_PREDETERMINADAS) if entrada_pdf else IMAGENES_PREDETERMINADAS
+
     try:
-        imagenes = preparar_imagenes(IMAGENES_PREDETERMINADAS)
+        imagenes = preparar_imagenes(imagenes_config)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 

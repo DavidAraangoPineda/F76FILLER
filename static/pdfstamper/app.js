@@ -1,13 +1,38 @@
 const files = { pdf: null };
+let pdfPredeterminadoActual = '';
 
 function setFile(input, key) {
   const file = input.files[0];
   if (!file) return;
   files[key] = file;
+  if (key === 'pdf') pdfPredeterminadoActual = ''; // subida manual: sin coordenadas propias
   document.getElementById('hint-' + key).textContent = file.name;
   document.getElementById('btn-'  + key).classList.add('selected');
   checkReady();
   programarVistaPrevia();
+}
+
+function aplicarFilasPredeterminadas(filas) {
+  for (let i = 1; i <= Object.keys(filas).length; i++) {
+    const fila = filas[i] || filas[String(i)];
+    if (!fila) continue;
+
+    const texto = document.querySelector(`.m-texto[data-row="${i}"]`);
+    if (texto) {
+      texto.value = fila.texto || ''; // valor real predeterminado de config.py, si lo definiste
+      texto.placeholder = fila.placeholder || ('Texto ' + i);
+    }
+    const fuente = document.querySelector(`.m-fuente[data-row="${i}"]`);
+    if (fuente) fuente.value = fila.fuente || '';
+    const x = document.querySelector(`.m-x[data-row="${i}"]`);
+    if (x) x.value = fila.x ?? 0;
+    const y = document.querySelector(`.m-y[data-row="${i}"]`);
+    if (y) y.value = fila.y ?? 0;
+    const tamano = document.querySelector(`.m-tamano[data-row="${i}"]`);
+    if (tamano) tamano.value = fila.tamano ?? 14;
+    const centrado = document.querySelector(`.m-centrado[data-row="${i}"]`);
+    if (centrado) centrado.checked = !!fila.centrado;
+  }
 }
 
 async function seleccionarPdfPredeterminado(select) {
@@ -15,15 +40,25 @@ async function seleccionarPdfPredeterminado(select) {
   if (!nombre) return;
 
   try {
-    const resp = await fetch('/pdfstamper/pdf_predeterminado?nombre=' + encodeURIComponent(nombre));
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'No se pudo cargar el PDF predeterminado.' }));
+    const [respPdf, respFilas] = await Promise.all([
+      fetch('/pdfstamper/pdf_predeterminado?nombre=' + encodeURIComponent(nombre)),
+      fetch('/pdfstamper/pdf_predeterminado/filas?nombre=' + encodeURIComponent(nombre)),
+    ]);
+    if (!respPdf.ok) {
+      const err = await respPdf.json().catch(() => ({ error: 'No se pudo cargar el PDF predeterminado.' }));
       alert(err.error || 'No se pudo cargar el PDF predeterminado.');
       select.value = '';
       return;
     }
-    const blob = await resp.blob();
+    const blob = await respPdf.blob();
     files.pdf = new File([blob], nombre + '.pdf', { type: 'application/pdf' });
+    pdfPredeterminadoActual = nombre;
+
+    if (respFilas.ok) {
+      const datos = await respFilas.json();
+      aplicarFilasPredeterminadas(datos.filas || {});
+    }
+
     const hint = document.getElementById('hint-pdf');
     if (hint) hint.textContent = nombre;
     const btn = document.getElementById('btn-pdf');
@@ -128,6 +163,7 @@ async function generar() {
 
   const form = new FormData();
   form.append('pdf', files.pdf);
+  form.append('nombre_pdf', pdfPredeterminadoActual);
   form.append('pagina', document.getElementById('pagina').value || '1');
   form.append('color', document.getElementById('color').value || '#000000');
   agregarFilasAlForm(form, filas, true);
@@ -185,6 +221,7 @@ async function actualizarVistaPrevia() {
 
   let url;
   if (vistaActual === 'pdf') {
+    form.append('nombre_pdf', pdfPredeterminadoActual);
     form.append('color', document.getElementById('color').value || '#000000');
     agregarFilasAlForm(form, filas, true);
     url = '/pdfstamper/generar';
