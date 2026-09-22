@@ -79,6 +79,8 @@ PDFS_DISPONIBLES = {
     "BPS": "VACIO BPS.pdf",
     "PSSR": "VACIO PSSR.pdf",
     "SATS": "VACIO SATS.pdf",
+    "CMT": "VACOP CMT.pdf",
+    "CMHBT": "VACIO CMHBT.pdf",
     "PRUEBA": "prueba.pdf",
 
 }
