@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>PDF Stamper</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='pdfstamper/style.css') }}">
+<script>
+  // Pantallas chicas van a la versión celular, salvo que se haya pedido la de escritorio.
+  if (window.innerWidth < 720 && !location.search.includes('escritorio=1')) {
+    location.replace("{{ url_for('pdfstamper.movil') }}");
+  }
+</script>
 </head>
 <body>
 
@@ -12,6 +18,7 @@
   <div class="flag">📄</div>
   <h1>PDF Stamper</h1>
   <p class="subtitle">Inserta texto en una posición exacta de tu PDF</p>
+  <p class="subtitle"><a href="{{ url_for('pdfstamper.movil') }}">📱 Versión celular</a></p>
 </header>
 
 <div class="layout">

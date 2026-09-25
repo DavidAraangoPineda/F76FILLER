@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Stamper — Celular</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='pdfstamper/movil.css') }}">
+</head>
+<body>
+
+<header>
+  <div class="flag">📄</div>
+  <h1>Generar documentos</h1>
+  <p class="subtitle">Completá los datos una sola vez</p>
+</header>
+
+<form class="card" id="form" onsubmit="return generar(event)" autocomplete="off">
+
+  <section>
+    <h2>1. Datos del marino</h2>
+    {% for id_campo, etiqueta in campos %}
+    <div class="field">
+      <label for="{{ id_campo }}{{ '-sel' if id_campo == 'pais' else '' }}">{{ etiqueta }}</label>
+      {% if id_campo == 'pais' %}
+      <select id="pais-sel" required onchange="elegirPais()">
+        <option value="" disabled selected>— Elegí un país —</option>
+        {% for p in paises %}
+        <option value="{{ p.lugar }}" data-nac="{{ p.nacionalidad }}">{{ p.lugar }}</option>
+        {% endfor %}
+        <option value="__manual__">✏️ Otro (escribir a mano)</option>
+      </select>
+      <input type="text" id="pais-manual" class="manual" placeholder="Escribí el lugar de nacimiento"
+             autocapitalize="words" oninput="sincronizarPais()" hidden>
+      <input type="hidden" id="pais" name="pais">
+      {% elif id_campo == 'fecha_nacimiento' %}
+      <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" required min="1900-01-01" max="{{ hoy }}">
+      {% else %}
+      <input type="text" id="{{ id_campo }}" name="{{ id_campo }}" required autocapitalize="words">
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <section>
+    <h2>2. Documentos a generar</h2>
+    {% for d in documentos %}
+    <div class="doc">
+      <label class="doc-check">
+        <input type="checkbox" class="doc-cb" value="{{ d.nombre }}" onchange="alternarDoc(this)">
+        <span>{{ d.nombre }}</span>
+      </label>
+      <div class="doc-num" id="num-wrap-{{ d.nombre }}" hidden>
+        <label for="num-{{ d.nombre }}">Últimos {{ digitos }} números</label>
+        <div class="num-row">
+          <span class="prefijo">PMTS/{{ d.codigo }}/24-03-</span>
+          <input type="text" id="num-{{ d.nombre }}" inputmode="numeric" pattern="[0-9]*"
+                 maxlength="{{ digitos }}" placeholder="{{ d.ejemplo }}">
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <button type="submit" class="btn-generate" id="btn-gen">Generar</button>
+
+  <div class="status" id="status"></div>
+
+  <div id="resultados" hidden>
+    <h2>3. Descargas</h2>
+    <div id="lista"></div>
+    <button type="button" class="btn-zip" id="btn-zip" onclick="descargarZip()">⬇️ Descargar todos en ZIP</button>
+  </div>
+
+</form>
+
+<p class="footer"><a href="{{ url_for('pdfstamper.index') }}?escritorio=1">Ir a la versión de escritorio</a></p>
+
+<script>
+const DIGITOS = {{ digitos }};
+</script>
+<script src="{{ url_for('static', filename='pdfstamper/movil.js') }}"></script>
+</body>
+</html>

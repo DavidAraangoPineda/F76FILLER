@@ -193,3 +193,178 @@ IMAGENES_PREDETERMINADAS = [
 ]
 
 
+
+# ── Versión celular (/pdfstamper/movil) ──────────────────────────────────────
+# En el celular no hay vista previa: se eligen los documentos a generar, los
+# datos comunes se piden una sola vez y solo el número de la fila por
+# documento se pide para cada uno.
+#
+# MOVIL_CAMPOS: los datos comunes que se piden una vez (id, etiqueta visible).
+MOVIL_CAMPOS = [
+    ("nombre", "Nombre completo"),
+    ("documento", "Número de documento"),
+    ("pais", "Lugar de nacimiento"),
+    ("fecha_nacimiento", "Fecha de nacimiento"),
+    ("nacionalidad", "Nacionalidad"),
+]
+
+# MOVIL_PLANTILLAS_COMUNES: cómo se arma el texto de cada fila común a partir
+# de los campos de arriba. La app pone los asteriscos y el espaciado.
+MOVIL_PLANTILLAS_COMUNES = {
+    1: "* * * {nombre} * * *",
+    2: "*** {documento} ***",
+    3: "* * * {pais}{separacion}{fecha_nacimiento} * * *",
+    4: "* * * {nacionalidad} * * *",
+}
+
+# Fila que cambia en cada documento. {codigo} es el nombre del PDF en
+# PDFS_DISPONIBLES (BFA, BFF, CMT...) salvo que esa entrada defina su propio
+# "codigo". {numero} son los últimos dígitos, que se piden por documento.
+# {separacion} (fila 3, entre lugar de nacimiento y fecha): 4 espacios si el
+# lugar es corto y solo 2 si es largo (más de MOVIL_LUGAR_LARGO caracteres),
+# para que quepa en la línea del documento.
+MOVIL_SEPARACION_CORTA = 4
+MOVIL_SEPARACION_LARGA = 2
+MOVIL_LUGAR_LARGO = 15
+
+MOVIL_FILA_POR_DOCUMENTO = 5
+MOVIL_PLANTILLA_POR_DOCUMENTO = "*** PMTS/{codigo}/24-03-{numero} ***"
+MOVIL_DIGITOS_NUMERO = 5
+
+# PDFs de PDFS_DISPONIBLES que NO aparecen en la versión celular.
+MOVIL_EXCLUIR = {"PRUEBA"}
+
+# Número de ejemplo que aparece atenuado (placeholder) en el campo de los
+# últimos dígitos de cada documento. Los que no aparezcan acá muestran ceros.
+MOVIL_NUMEROS_EJEMPLO = {
+    "SATS": "01066",
+    "BPS": "01436",
+    "PSSR": "01435",
+    "BFF": "01434",
+    "BFA": "01442",
+}
+
+# Meses tal como se imprimen en la fecha de nacimiento (14 June 1989). Los
+# muy largos van abreviados; cambialos acá si querés otra abreviatura.
+MOVIL_MESES = {
+    1: "January", 2: "Feb", 3: "March", 4: "April", 5: "May", 6: "June",
+    7: "July", 8: "August", 9: "Sept", 10: "October", 11: "Nov", 12: "Dec",
+}
+
+# Lista de países del celular: (nombre en inglés, nombre en español o None,
+# nacionalidad). En "Lugar de nacimiento" se imprime el nombre en español si
+# lo tiene (países de habla hispana) y, si no, el de inglés. La nacionalidad
+# siempre va en inglés. Se ordena sola por el nombre que se imprime. Si un
+# país no está o querés otro texto, en el formulario hay una opción para
+# escribirlo a mano.
+PAISES = [
+    ("Afghanistan", None, "Afghan"), ("Albania", None, "Albanian"),
+    ("Algeria", None, "Algerian"), ("Andorra", None, "Andorran"),
+    ("Angola", None, "Angolan"), ("Antigua and Barbuda", None, "Antiguan"),
+    ("Argentina", "Argentina", "Argentinian"), ("Armenia", None, "Armenian"),
+    ("Australia", None, "Australian"), ("Austria", None, "Austrian"),
+    ("Azerbaijan", None, "Azerbaijani"), ("Bahamas", None, "Bahamian"),
+    ("Bahrain", None, "Bahraini"), ("Bangladesh", None, "Bangladeshi"),
+    ("Barbados", None, "Barbadian"), ("Belarus", None, "Belarusian"),
+    ("Belgium", None, "Belgian"), ("Belize", None, "Belizean"),
+    ("Benin", None, "Beninese"), ("Bhutan", None, "Bhutanese"),
+    ("Bolivia", "Bolivia", "Bolivian"),
+    ("Bosnia and Herzegovina", None, "Bosnian"), ("Botswana", None, "Botswanan"),
+    ("Brazil", None, "Brazilian"), ("Brunei", None, "Bruneian"),
+    ("Bulgaria", None, "Bulgarian"), ("Burkina Faso", None, "Burkinabe"),
+    ("Burundi", None, "Burundian"), ("Cambodia", None, "Cambodian"),
+    ("Cameroon", None, "Cameroonian"), ("Canada", None, "Canadian"),
+    ("Cape Verde", None, "Cape Verdean"),
+    ("Central African Republic", None, "Central African"),
+    ("Chad", None, "Chadian"), ("Chile", "Chile", "Chilean"),
+    ("China", None, "Chinese"), ("Colombia", "Colombia", "Colombian"),
+    ("Comoros", None, "Comorian"), ("Congo", None, "Congolese"),
+    ("Costa Rica", "Costa Rica", "Costa Rican"), ("Croatia", None, "Croatian"),
+    ("Cuba", "Cuba", "Cuban"), ("Cyprus", None, "Cypriot"),
+    ("Czech Republic", None, "Czech"),
+    ("Democratic Republic of the Congo", None, "Congolese"),
+    ("Denmark", None, "Danish"), ("Djibouti", None, "Djiboutian"),
+    ("Dominica", None, "Dominican"),
+    ("Dominican Republic", "República Dominicana", "Dominican"),
+    ("Ecuador", "Ecuador", "Ecuadorian"), ("Egypt", None, "Egyptian"),
+    ("El Salvador", "El Salvador", "Salvadorean"),
+    ("Equatorial Guinea", "Guinea Ecuatorial", "Equatorial Guinean"),
+    ("Eritrea", None, "Eritrean"), ("Estonia", None, "Estonian"),
+    ("Eswatini", None, "Swazi"), ("Ethiopia", None, "Ethiopian"),
+    ("Fiji", None, "Fijian"), ("Finland", None, "Finnish"),
+    ("France", None, "French"), ("Gabon", None, "Gabonese"),
+    ("Gambia", None, "Gambian"), ("Georgia", None, "Georgian"),
+    ("Germany", None, "German"), ("Ghana", None, "Ghanaian"),
+    ("Greece", None, "Greek"), ("Grenada", None, "Grenadian"),
+    ("Guatemala", "Guatemala", "Guatemalan"), ("Guinea", None, "Guinean"),
+    ("Guinea-Bissau", None, "Bissau-Guinean"), ("Guyana", None, "Guyanese"),
+    ("Haiti", None, "Haitian"), ("Honduras", "Honduras", "Honduran"),
+    ("Hungary", None, "Hungarian"), ("Iceland", None, "Icelandic"),
+    ("India", None, "Indian"), ("Indonesia", None, "Indonesian"),
+    ("Iran", None, "Iranian"), ("Iraq", None, "Iraqi"),
+    ("Ireland", None, "Irish"), ("Israel", None, "Israeli"),
+    ("Italy", None, "Italian"), ("Ivory Coast", None, "Ivorian"),
+    ("Jamaica", None, "Jamaican"), ("Japan", None, "Japanese"),
+    ("Jordan", None, "Jordanian"), ("Kazakhstan", None, "Kazakh"),
+    ("Kenya", None, "Kenyan"), ("Kiribati", None, "I-Kiribati"),
+    ("Kosovo", None, "Kosovar"), ("Kuwait", None, "Kuwaiti"),
+    ("Kyrgyzstan", None, "Kyrgyz"), ("Laos", None, "Laotian"),
+    ("Latvia", None, "Latvian"), ("Lebanon", None, "Lebanese"),
+    ("Lesotho", None, "Basotho"), ("Liberia", None, "Liberian"),
+    ("Libya", None, "Libyan"), ("Liechtenstein", None, "Liechtensteiner"),
+    ("Lithuania", None, "Lithuanian"), ("Luxembourg", None, "Luxembourger"),
+    ("Madagascar", None, "Malagasy"), ("Malawi", None, "Malawian"),
+    ("Malaysia", None, "Malaysian"), ("Maldives", None, "Maldivian"),
+    ("Mali", None, "Malian"), ("Malta", None, "Maltese"),
+    ("Marshall Islands", None, "Marshallese"), ("Mauritania", None, "Mauritanian"),
+    ("Mauritius", None, "Mauritian"), ("Mexico", "México", "Mexican"),
+    ("Micronesia", None, "Micronesian"), ("Moldova", None, "Moldovan"),
+    ("Monaco", None, "Monegasque"), ("Mongolia", None, "Mongolian"),
+    ("Montenegro", None, "Montenegrin"), ("Morocco", None, "Moroccan"),
+    ("Mozambique", None, "Mozambican"), ("Myanmar", None, "Burmese"),
+    ("Namibia", None, "Namibian"), ("Nauru", None, "Nauruan"),
+    ("Nepal", None, "Nepalese"), ("Netherlands", None, "Dutch"),
+    ("New Zealand", None, "New Zealander"),
+    ("Nicaragua", "Nicaragua", "Nicaraguan"), ("Niger", None, "Nigerien"),
+    ("Nigeria", None, "Nigerian"), ("North Korea", None, "North Korean"),
+    ("North Macedonia", None, "Macedonian"), ("Norway", None, "Norwegian"),
+    ("Oman", None, "Omani"), ("Pakistan", None, "Pakistani"),
+    ("Palau", None, "Palauan"), ("Palestine", None, "Palestinian"),
+    ("Panama", "Panamá", "Panamanian"),
+    ("Papua New Guinea", None, "Papua New Guinean"),
+    ("Paraguay", "Paraguay", "Paraguayan"), ("Peru", "Perú", "Peruvian"),
+    ("Philippines", None, "Filipino"), ("Poland", None, "Polish"),
+    ("Portugal", None, "Portuguese"),
+    ("Puerto Rico", "Puerto Rico", "Puerto Rican"),
+    ("Qatar", None, "Qatari"), ("Romania", None, "Romanian"),
+    ("Russia", None, "Russian"), ("Rwanda", None, "Rwandan"),
+    ("Saint Kitts and Nevis", None, "Kittitian"),
+    ("Saint Lucia", None, "Saint Lucian"),
+    ("Saint Vincent and the Grenadines", None, "Vincentian"),
+    ("Samoa", None, "Samoan"), ("San Marino", None, "Sammarinese"),
+    ("Sao Tome and Principe", None, "Sao Tomean"),
+    ("Saudi Arabia", None, "Saudi"), ("Senegal", None, "Senegalese"),
+    ("Serbia", None, "Serbian"), ("Seychelles", None, "Seychellois"),
+    ("Sierra Leone", None, "Sierra Leonean"), ("Singapore", None, "Singaporean"),
+    ("Slovakia", None, "Slovak"), ("Slovenia", None, "Slovenian"),
+    ("Solomon Islands", None, "Solomon Islander"), ("Somalia", None, "Somali"),
+    ("South Africa", None, "South African"), ("South Korea", None, "South Korean"),
+    ("South Sudan", None, "South Sudanese"), ("Spain", "España", "Spanish"),
+    ("Sri Lanka", None, "Sri Lankan"), ("Sudan", None, "Sudanese"),
+    ("Suriname", None, "Surinamese"), ("Sweden", None, "Swedish"),
+    ("Switzerland", None, "Swiss"), ("Syria", None, "Syrian"),
+    ("Taiwan", None, "Taiwanese"), ("Tajikistan", None, "Tajik"),
+    ("Tanzania", None, "Tanzanian"), ("Thailand", None, "Thai"),
+    ("Timor-Leste", None, "Timorese"), ("Togo", None, "Togolese"),
+    ("Tonga", None, "Tongan"), ("Trinidad and Tobago", None, "Trinidadian"),
+    ("Tunisia", None, "Tunisian"), ("Turkey", None, "Turkish"),
+    ("Turkmenistan", None, "Turkmen"), ("Tuvalu", None, "Tuvaluan"),
+    ("Uganda", None, "Ugandan"), ("Ukraine", None, "Ukrainian"),
+    ("United Arab Emirates", None, "Emirati"),
+    ("United Kingdom", None, "British"), ("United States", None, "American"),
+    ("Uruguay", "Uruguay", "Uruguayan"), ("Uzbekistan", None, "Uzbek"),
+    ("Vanuatu", None, "Ni-Vanuatu"), ("Vatican City", None, "Vatican"),
+    ("Venezuela", "Venezuela", "Venezuelan"), ("Vietnam", None, "Vietnamese"),
+    ("Yemen", None, "Yemeni"), ("Zambia", None, "Zambian"),
+    ("Zimbabwe", None, "Zimbabwean"),
+]

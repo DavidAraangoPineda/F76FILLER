@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --navy: #0f2040; --blue: #1a56db; --sky: #e8f0fe; --white: #fff;
+  --gray: #6b7280; --light: #f8fafc; --border: #dde3ed;
+  --success: #16a34a; --error: #dc2626;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif; background: var(--light);
+  min-height: 100vh; padding: 20px 14px 40px;
+  display: flex; flex-direction: column; align-items: center;
+}
+header { text-align: center; margin-bottom: 20px; }
+.flag { font-size: 32px; margin-bottom: 6px; }
+h1 { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--navy); }
+.subtitle { font-size: 13px; color: var(--gray); margin-top: 4px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--navy); margin: 4px 0 14px; }
+
+.card {
+  width: 100%; max-width: 480px; background: var(--white);
+  border: 1px solid var(--border); border-radius: 16px; padding: 22px 18px;
+  box-shadow: 0 4px 24px rgba(15,32,64,.07);
+}
+section { margin-bottom: 24px; }
+.field { margin-bottom: 14px; }
+.field label, .doc-num label { display: block; font-size: 12px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+input[type="text"] {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 13px 12px; background: var(--light); font: inherit; font-size: 16px; color: var(--navy); outline: none;
+}
+input[type="text"]:focus { border-color: var(--blue); }
+select, input[type="date"] {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 13px 12px; background: var(--light); font: inherit; font-size: 16px; color: var(--navy); outline: none;
+}
+select:focus, input[type="date"]:focus { border-color: var(--blue); }
+.manual { margin-top: 8px; }
+
+.doc { border: 1.5px solid var(--border); border-radius: 12px; padding: 4px 14px; margin-bottom: 10px; background: var(--light); }
+.doc-check { display: flex; align-items: center; gap: 12px; padding: 12px 0; font-size: 16px; font-weight: 600; color: var(--navy); cursor: pointer; }
+.doc-check input { width: 22px; height: 22px; accent-color: var(--blue); }
+.doc-num { padding: 4px 0 14px; }
+.num-row { display: flex; align-items: center; gap: 8px; }
+.prefijo { font-size: 14px; color: var(--gray); white-space: nowrap; }
+.num-row input { flex: 1; min-width: 0; letter-spacing: 3px; }
+
+button { font: inherit; }
+.btn-generate, .btn-zip {
+  width: 100%; padding: 16px; border: none; border-radius: 12px;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+}
+.btn-generate { background: var(--navy); color: var(--white); }
+.btn-generate:disabled { background: #94a3b8; }
+.btn-zip { background: var(--blue); color: var(--white); margin-top: 12px; }
+.btn-zip:disabled { background: #94a3b8; }
+
+.status { margin-top: 14px; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 500; text-align: center; display: none; }
+.status.loading { display: block; background: var(--sky); color: var(--blue); }
+.status.success { display: block; background: #f0fdf4; color: var(--success); }
+.status.error { display: block; background: #fef2f2; color: var(--error); }
+
+#resultados { margin-top: 24px; }
+.res { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.res .nombre { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--navy); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.res a, .res button {
+  padding: 12px 14px; border-radius: 10px; border: none; font-size: 14px; font-weight: 600;
+  text-decoration: none; color: var(--white); background: var(--success); cursor: pointer;
+}
+.res button { background: var(--blue); }
+.footer { margin-top: 20px; font-size: 13px; }
+.footer a { color: var(--gray); }
